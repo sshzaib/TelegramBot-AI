@@ -7,42 +7,28 @@ from telegram.ext import (
     MessageHandler,
 )
 from openai import OpenAI
-from dotenv import dotenv_values
+import sqlalchemy as db
+from config import OPENAI_API_KEY, BOT_TOKEN
 
-config = dotenv_values(".env")
+engine = db.create_engine("sqlite:///db.sqlite3", echo=True)
+connection = engine.connect()
 
+metadata = db.MetaData()
+
+user_table = db.Table(
+    "user",
+    metadata,
+    db.Column("id", db.Integer, primary_key=True),
+    db.Column("username", db.String),
+    db.Column("firstname", db.String),
+    db.Column("lastname", db.String),
+)
 MODEL = "gpt-4o"
-client = OpenAI(api_key=config["OPENAI_API_KEY"])
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Welcome Ask AI Bot."
-    )
-
-
-async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(update)
-    completion = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant. You have the knowledge of everything. Try you best to answer the questions.",
-            },
-            {
-                "role": "user",
-                "content": f"{update.message.text}",
-            },
-        ],
-    )
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id, text=completion.choices[0].message.content
-    )
 
 
 async def handlePhoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,7 +70,9 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == "__main__":
-    application = ApplicationBuilder().token(config["TOKEN"]).build()
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    metadata.create_all(engine)
 
     text_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handleText)
     application.add_handler(text_handler)
