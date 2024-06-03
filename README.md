@@ -1,6 +1,6 @@
 # Telegram Bot-AI
 
-An Opensource Telegram bot with AI built using OPENAI GPT-4o model (text & image).
+An Opensource Telegram bot with AI built using OPENAI GPT-4o model undestands text & image.
 
 ## About this project
 
