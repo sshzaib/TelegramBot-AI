@@ -1,5 +1,23 @@
-def insert_user(firstname: str, lastname: str, username: str) -> None:
-    query = user_table.insert().values(
-        firstname=firstname, lastname=lastname, username=username
-    )
-    connection.execute(query)
+from .models import Base, User, Conversation
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+
+engine = create_engine("sqlite:///db.sqlite3", echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+db_session = scoped_session(SessionLocal)
+
+
+def get_db():
+    db = db_session()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
+
+if __name__ == "__main__":
+    init_db()

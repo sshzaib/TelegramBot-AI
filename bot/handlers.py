@@ -1,41 +1,59 @@
+from database.models import User, Conversation
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
     ContextTypes,
-    filters,
-    MessageHandler,
 )
+from openai_integration import generate_ai_response
+from database.manage import get_db
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Welcome Ask AI Bot."
-    )
+    try:
+        db = next(get_db())
+        user = User(
+            username=update.message.chat.username,  # type: ignore
+            firstname=update.message.chat.first_name, # type: ignore
+            lastname=update.message.chat.last_name, # type: ignore
+        )
+        db.add(user)
+        db.commit()
+    except:
+        pass
+    finally:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Welcome Ask AI Bot." # type: ignore
+        )
 
 
 MODEL = "gpt-4o"
 
 
 async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(update)
-    completion = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant. You have the knowledge of everything. Try you best to answer the questions.",
-            },
-            {
-                "role": "user",
-                "content": f"{update.message.text}",
-            },
-        ],
-    )
-    insert_user(
-        update.message.chat.first_name,
-        update.message.chat.last_name,
-        update.message.chat.username,
-    )
+    text= update.message.text # type: ignore
+    db = next(get_db())
+    user = db.query(User).filter(User.username == update.message.chat.username).first() # type: ignore
+    response = generate_ai_response(text, user) # type: ignore
+    if (user):
+        conversation = Conversation(
+            text=update.message.text, # type: ignore
+            imageurl="",
+            response=response,
+            user=user
+        )
+        db.add(conversation)
+        db.commit()
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response) # type: ignore
+
+
+async def handlePhoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file = await context.bot.get_file(update.message.photo[-1].file_id) # type: ignore
+    imageURL = file["file_path"]
+    response = generate_ai_response(update.message.caption, imageURL) # type: ignore
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response) # type: ignore
+
+
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
-        chat_id=update.effective_chat.id, text=completion.choices[0].message.content
+        chat_id=update.effective_chat.id,  # type: ignore
+        text="Sorry, I didn't understand this command.",
     )
