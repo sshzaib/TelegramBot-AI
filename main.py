@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 import sqlalchemy as db
 from config import BOT_TOKEN
-from bot import start, handleText, handlePhoto, unknown
+from bot import start, handleText, handlePhoto, unknown, reset
 
 engine = db.create_engine("sqlite:///db.sqlite3", echo=True)
 connection = engine.connect()
@@ -21,6 +21,9 @@ if __name__ == "__main__":
 
     start_handler = CommandHandler("start", start)
     application.add_handler(start_handler)
+
+    reset_handler = CommandHandler("reset", reset)
+    application.add_handler(reset_handler)
 
     text_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handleText)
     application.add_handler(text_handler)
