@@ -46,9 +46,11 @@ async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handlePhoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    db = next(get_db())
+    user = db.query(User).filter(User.username == update.message.chat.username).first() # type: ignore
     file = await context.bot.get_file(update.message.photo[-1].file_id) # type: ignore
     imageURL = file["file_path"]
-    response = generate_ai_response(update.message.caption, imageURL) # type: ignore
+    response = generate_ai_response(update.message.caption, user, imageURL) # type: ignore
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response) # type: ignore
 
 
