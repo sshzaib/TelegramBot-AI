@@ -37,10 +37,12 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         db = next(get_db())
         user = (
-            db.query(User).filter(User.username == update.message.chat.username).first()
+            db.query(User).filter(User.username ==
+                                  update.message.chat.username).first()
         )
         conversations_to_delete = (
-            db.query(Conversation).filter(Conversation.user_id == user.id).all()
+            db.query(Conversation).filter(
+                Conversation.user_id == user.id).all()
         )
         if conversations_to_delete:
             for conversation in conversations_to_delete:
@@ -62,7 +64,8 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text  # type: ignore
     db = next(get_db())
-    user = db.query(User).filter(User.username == update.message.chat.username).first()
+    user = db.query(User).filter(User.username ==
+                                 update.message.chat.username).first()
     response = generate_ai_response(text, user)  # type: ignore
     if user and response:
         conversation = Conversation(
@@ -76,7 +79,8 @@ async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handlePhoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.caption
     db = next(get_db())
-    user = db.query(User).filter(User.username == update.message.chat.username).first()
+    user = db.query(User).filter(User.username ==
+                                 update.message.chat.username).first()
     # type: ignore
     file = await context.bot.get_file(update.message.photo[-1].file_id)["file_path"]
     imageURL = file["file_path"]
@@ -91,8 +95,9 @@ async def handlePhoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # db = next(get_db())
-    # user = db.query(User).filter(User.username == update.message.chat.username).first()
+    db = next(get_db())
+    user = db.query(User).filter(User.username ==
+                                 update.message.chat.username).first()
     file = await context.bot.get_file(update.message.voice.file_id)
     voiceUrl = file["file_path"]
     date = datetime.datetime.now()
@@ -101,19 +106,19 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     urllib.request.urlretrieve(voiceUrl, voice_path)
     text = generate_text_from_voice_message(voice_path)
     print(text)
-    # response = generate_ai_response(text, user)  # type: ignore
-    # if user and response:
-    #    conversation = Conversation(
-    #        text=text, imageurl=imageURL, response=response, user=user
-    #    )
-    #    db.add(conversation)
-    #    db.commit()
-    # type: ignore
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text.text)
+    response = generate_ai_response(text, user)
+    print(response)
+    if user and response:
+        conversation = Conversation(
+            text=text, imageurl="", response=response, user=user
+        )
+        db.add(conversation)
+        db.commit()
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,  # type: ignore
+        chat_id=update.effective_chat.id,
         text="Sorry, I didn't understand this command.",
     )
