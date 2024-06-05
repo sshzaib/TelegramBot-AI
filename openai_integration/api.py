@@ -7,11 +7,12 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 def generate_ai_response(text, user, imageURL=""):
-    if (text == None): 
+    if text is None:
         response = "It seems you've uploaded an image file. How can I assist you with this image? If you have any specific questions or need any particular operations performed on it, please let me know!"
         return response
     db = next(get_db())
-    conversations = db.query(Conversation).filter(Conversation.user == user) # type: ignore
+    conversations = db.query(Conversation).filter(
+        Conversation.user == user)  # type: ignore
     messages = [
         {
             "role": "system",
@@ -19,43 +20,34 @@ def generate_ai_response(text, user, imageURL=""):
         }
     ]
     for conversation in conversations:
-        if (conversation.imageurl == ""):
-            user_history={
-                "role": "user",
-                "content": conversation.text
-            }
-        else: 
+        if conversation.imageurl == "":
+            user_history = {"role": "user", "content": conversation.text}
+        else:
             user_history = {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": conversation.text or ""},
                     {"type": "image_url", "image_url": {
-                        "url": conversation.imageurl
-                    }}
-                ]
+                        "url": conversation.imageurl}},
+                ],
             }
         messages.append(user_history)
-        response_history = {
-            "role": "assistant",
-            "content": conversation.response
-        }
+        response_history = {"role": "assistant",
+                            "content": conversation.response}
         messages.append(response_history)
 
-    if (imageURL ==""):
-        messages.append({
+    if imageURL == "":
+        messages.append({"role": "user", "content": text})
+    else:
+        messages.append(
+            {
                 "role": "user",
-                "content": text
-        })
-    else: 
-        messages.append({
-            "role": "user",
                 "content": [
                     {"type": "text", "text": text or ""},
-                    {"type": "image_url", "image_url": {
-                        "url": imageURL
-                    }}
-                ]
-            })
+                    {"type": "image_url", "image_url": {"url": imageURL}},
+                ],
+            }
+        )
     print(messages)
     response = client.chat.completions.create(
         model=MODEL,
@@ -64,3 +56,11 @@ def generate_ai_response(text, user, imageURL=""):
     )
     return response.choices[0].message.content
 
+
+def generate_text_from_voice_message(voice_path):
+    transcription = client.audio.transcriptions.create(
+        file=open(f"{voice_path}", "rb"),
+        model="whisper-1",
+        prompt="",
+    )
+    return transcription.text
