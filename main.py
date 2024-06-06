@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 import sqlalchemy as db
 from config import BOT_TOKEN
-from bot import start, handleText, handlePhoto, handleAudio, unknown, reset
+from bot import start, handleText, handlePhoto, handleAudio, handleVideo, unknown, reset
 
 engine = db.create_engine("sqlite:///db.sqlite3", echo=True)
 connection = engine.connect()
@@ -25,7 +25,8 @@ if __name__ == "__main__":
     reset_handler = CommandHandler("reset", reset)
     application.add_handler(reset_handler)
 
-    text_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handleText)
+    text_handler = MessageHandler(
+        filters.TEXT & (~filters.COMMAND), handleText)
     application.add_handler(text_handler)
 
     photo_handler = MessageHandler(filters.PHOTO, handlePhoto)
@@ -33,6 +34,9 @@ if __name__ == "__main__":
 
     audio_handler = MessageHandler(filters.VOICE, handleAudio)
     application.add_handler(audio_handler)
+
+    video_handler = MessageHandler(filters.VIDEO, handleVideo)
+    application.add_handler(video_handler)
 
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     application.add_handler(unknown_handler)
