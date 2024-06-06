@@ -1,14 +1,19 @@
 from database.models import User, Conversation
-from telegram import Update
+from telegram import Update, InputFile
 from telegram.ext import (
     ContextTypes,
 )
-from openai_integration import generate_ai_response, generate_text_from_voice_message
+from openai_integration import (
+    generate_ai_response,
+    generate_text_from_voice_message,
+    generate_audio_from_text,
+)
 from database.manage import get_db
 import urllib
 import random
 import datetime
 import os
+import requests
 
 
 MODEL = "gpt-4o"
@@ -102,11 +107,15 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     voiceUrl = file["file_path"]
     date = datetime.datetime.now()
     random_path = {date.strftime("%f")}
-    voice_path = f"data/{random_path}.oga"
-    urllib.request.urlretrieve(voiceUrl, voice_path)
-    text = generate_text_from_voice_message(voice_path)
+    user_voice_path = f"data/{random_path}.oga"
+    urllib.request.urlretrieve(voiceUrl, user_voice_path)
+    text = generate_text_from_voice_message(user_voice_path)
     print(text)
+    date = datetime.datetime.now()
+    random_path = {date.strftime("%f")}
+    response_voice_path = f"data/{random_path}.oga"
     response = generate_ai_response(text, user)
+    generate_audio_from_text(response, response_voice_path)
     print(response)
     if user and response:
         conversation = Conversation(
@@ -114,7 +123,8 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         db.add(conversation)
         db.commit()
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    with open(response_voice_path, "rb") as voice_file:
+        await context.bot.send_voice(chat_id=update.effective_chat.id, voice=voice_file)
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
