@@ -64,3 +64,9 @@ def generate_text_from_voice_message(voice_path):
         prompt="",
     )
     return transcription.text
+
+
+def generate_audio_from_text(text, voice_path):
+    response = client.audio.speech.create(
+        model="tts-1", voice="alloy", input=text)
+    response.stream_to_file(voice_path)
