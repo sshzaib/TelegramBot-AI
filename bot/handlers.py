@@ -7,13 +7,14 @@ from openai_integration import (
     generate_ai_response,
     generate_text_from_voice_message,
     generate_audio_from_text,
+    generate_ai_response_for_video,
 )
 from database.manage import get_db
 import urllib
-import random
 import datetime
-import os
 import requests
+import cv2
+import base64
 
 
 MODEL = "gpt-4o"
@@ -125,17 +126,23 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handleVideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     video = update.message.video  # a video
     name = "{}-{}x{}.mp4".format(update.update_id, video.width, video.height)
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Downloading video %s (%i bytes)" % (name, video.file_size),
-    )
     tfile = await context.bot.getFile(video.file_id)
     r = requests.get(tfile.file_path, stream=True)
     with open(f"data/{name}", "wb") as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:
                 f.write(chunk)
-    print("Download completed")
+    downloaded_video = cv2.VideoCapture(f"data/{name}")
+    base64Frames = []
+    while downloaded_video.isOpened():
+        success, frame = downloaded_video.read()
+        if not success:
+            break
+        _, buffer = cv2.imencode(".jpg", frame)
+        base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+    downloaded_video.release()
+    response = generate_ai_response_for_video(base64Frames)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
