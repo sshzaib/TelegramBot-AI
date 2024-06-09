@@ -4,3 +4,4 @@ openai
 python-dotenv
 sqlalchemy
 opencv-python
+moviepy

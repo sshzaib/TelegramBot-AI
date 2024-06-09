@@ -1,8 +1,8 @@
 from database.models import User, Conversation
-from telegram import Update, InputFile
 from telegram.ext import (
     ContextTypes,
 )
+from telegram import Update
 from openai_integration import (
     generate_ai_response,
     generate_text_from_voice_message,
@@ -15,6 +15,8 @@ import datetime
 import requests
 import cv2
 import base64
+
+from openai_integration.api import extract_audio_from_video
 
 
 MODEL = "gpt-4o"
@@ -84,7 +86,7 @@ async def handlePhoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = next(get_db())
     user = db.query(User).filter(User.username == update.message.chat.username).first()
     # type: ignore
-    file = await context.bot.get_file(update.message.photo[-1].file_id)["file_path"]
+    file = await context.bot.get_file(update.message.photo[-1].file_id)
     imageURL = file["file_path"]
     response = generate_ai_response(text, user, imageURL)  # type: ignore
     if user and response:
@@ -102,17 +104,15 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = await context.bot.get_file(update.message.voice.file_id)
     voiceUrl = file["file_path"]
     date = datetime.datetime.now()
-    random_path = {date.strftime("%f")}
-    user_voice_path = f"data/{random_path}.oga"
+    audio_name = f"{date.strftime('%f')}.oga"
+    user_voice_path = f"data/{audio_name}"
     urllib.request.urlretrieve(voiceUrl, user_voice_path)
-    text = generate_text_from_voice_message(user_voice_path)
-    print(text)
+    text = generate_text_from_voice_message(audio_name)
+    response = generate_ai_response(text, user)
     date = datetime.datetime.now()
     random_path = {date.strftime("%f")}
     response_voice_path = f"data/{random_path}.oga"
-    response = generate_ai_response(text, user)
     generate_audio_from_text(response, response_voice_path)
-    print(response)
     if user and response:
         conversation = Conversation(
             text=text, imageurl="", response=response, user=user
@@ -124,15 +124,16 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handleVideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(update)
     video = update.message.video  # a video
-    name = "{}-{}x{}.mp4".format(update.update_id, video.width, video.height)
+    video_name = "{}-{}x{}.mp4".format(update.update_id, video.width, video.height)
     tfile = await context.bot.getFile(video.file_id)
     r = requests.get(tfile.file_path, stream=True)
-    with open(f"data/{name}", "wb") as f:
+    with open(f"data/{video_name}", "wb") as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:
                 f.write(chunk)
-    downloaded_video = cv2.VideoCapture(f"data/{name}")
+    downloaded_video = cv2.VideoCapture(f"data/{video_name}")
     base64Frames = []
     while downloaded_video.isOpened():
         success, frame = downloaded_video.read()
@@ -141,8 +142,23 @@ async def handleVideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _, buffer = cv2.imencode(".jpg", frame)
         base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
     downloaded_video.release()
-    response = generate_ai_response_for_video(base64Frames)
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    audio_name = extract_audio_from_video(video_name)
+    text = generate_text_from_voice_message(audio_name)
+    db = next(get_db())
+    user = db.query(User).filter(User.username == update.message.chat.username).first()
+    response = generate_ai_response_for_video(base64Frames, user, text)
+    date = datetime.datetime.now()
+    response_audio_name = f"{date.strftime('%f')}.oga"
+    response_audio_path = f"data/{response_audio_name}"
+    generate_audio_from_text(response, response_audio_path)
+    if user and response:
+        conversation = Conversation(
+            text=text, imageurl="", response=response, user=user
+        )
+        db.add(conversation)
+        db.commit()
+    with open(response_audio_path, "rb") as audio_file:
+        await context.bot.send_voice(chat_id=update.effective_chat.id, voice=audio_file)
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
