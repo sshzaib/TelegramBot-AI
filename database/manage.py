@@ -1,8 +1,12 @@
-from .models import Base, User, Conversation
+from database.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+import os
 
-engine = create_engine("sqlite:///db.sqlite3", echo=True)
+database_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db.sqlite3')
+
+
+engine = create_engine(f'sqlite:///{database_path}', echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 db_session = scoped_session(SessionLocal)
 
