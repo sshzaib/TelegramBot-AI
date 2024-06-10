@@ -1,3 +1,4 @@
+from config.settings import OPENAI_API_KEY, PINECONE_API_KEY
 from database.models import User, Conversation
 from telegram.ext import (
     ContextTypes,
@@ -15,8 +16,24 @@ import datetime
 import requests
 import cv2
 import base64
-
 from openai_integration.api import extract_audio_from_video
+from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone, ServerlessSpec
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import (
+    ConfigurableField,
+    RunnableBinding,
+    RunnableLambda,
+    RunnablePassthrough,
+)
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 
 MODEL = "gpt-4o"
@@ -159,6 +176,78 @@ async def handleVideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.commit()
     with open(response_audio_path, "rb") as audio_file:
         await context.bot.send_voice(chat_id=update.effective_chat.id, voice=audio_file)
+
+
+async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(update)
+    document = update.message.document
+    file = await context.bot.get_file(file_id=document)
+    await file.download_to_drive(f"data/{document.file_name}")
+    loader = PyPDFLoader(f"data/{document.file_name}")
+    pages = loader.load()
+    all_page_contents = "".join([doc.page_content for doc in pages])
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=200,
+        chunk_overlap=20,
+        length_function=len,
+        is_separator_regex=False,
+    )
+    texts = text_splitter.create_documents([all_page_contents])
+    embedding_text_list = [text.page_content for text in texts]
+    pc = Pinecone(api_key=PINECONE_API_KEY)
+    index_name = "telegram-bot-index"  # change if desired
+    existing_indexes = [index_info["name"] for index_info in pc.list_indexes()]
+    if index_name not in existing_indexes:
+        pc.create_index(
+            name=index_name,
+            dimension=1536,
+            metric="cosine",
+            spec=ServerlessSpec(cloud="aws", region="us-east-1"),
+        )
+        while not pc.describe_index(index_name).status["ready"]:
+            time.sleep(1)
+
+    index = pc.Index(index_name)
+    embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+
+    vectorstore = PineconeVectorStore(
+        index_name=index_name,
+        embedding=embeddings,
+        pinecone_api_key=PINECONE_API_KEY,
+    )
+
+    vectorstore.add_texts(embedding_text_list, namespace=update.message.chat.username)
+    template = """You are an helpful assistent. Answer the question based only on the following context.
+    {context}
+    Question: {question}
+    """
+    prompt = ChatPromptTemplate.from_template(template)
+
+    model = ChatOpenAI(openai_api_key=OPENAI_API_KEY)
+
+    retriever = vectorstore.as_retriever()
+    configurable_retriever = retriever.configurable_fields(
+        search_kwargs=ConfigurableField(
+            id="search_kwargs",
+            name="Search Kwargs",
+            description="The search kwargs to use",
+        )
+    )
+    chain = (
+        {"context": configurable_retriever, "question": RunnablePassthrough()}
+        | prompt
+        | model
+        | StrOutputParser()
+    )
+    response = chain.invoke(
+        update.message.caption,
+        config={
+            "configurable": {
+                "search_kwargs": {"namespace": update.message.chat.username}
+            }
+        },
+    )
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):

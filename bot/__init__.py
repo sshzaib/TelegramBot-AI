@@ -6,6 +6,7 @@ from .handlers import (
     reset,
     handleAudio,
     handleVideo,
+    handleFile,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "reset",
     "handleAudio",
     "handleVideo",
+    "handleFile",
 ]

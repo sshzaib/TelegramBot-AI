@@ -1,3 +1,3 @@
-from .settings import OPENAI_API_KEY, BOT_TOKEN
+from .settings import OPENAI_API_KEY, BOT_TOKEN, PINECONE_API_KEY
 
-__all__ = ["OPENAI_API_KEY", "BOT_TOKEN"]
+__all__ = ["OPENAI_API_KEY", "BOT_TOKEN", "PINECONE_API_KEY"]
