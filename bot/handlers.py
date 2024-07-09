@@ -3,6 +3,7 @@ from database.models import User, Conversation
 from telegram.ext import (
     ContextTypes,
 )
+import time
 from telegram import Update
 from openai_integration import (
     generate_ai_response,
@@ -21,7 +22,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
@@ -52,9 +52,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(e)
     finally:
+        message = """
+        Hello, How can I helo you.
+You can:
+    🗣️ Send me a voice message and I'll respond by voice
+    🤳 Send me a video message and I'll respond by voice
+    💬 Send me a chat message and I'll respond by text
+    📸 Send me a photo of your day and we can discuss it
+
+Write /reset at any moment to delete your entire convo history from our servers
+        """
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="Welcome Ask AI Bot.",  # type: ignore
+            text=message,
         )
 
 
@@ -74,7 +84,7 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("conversations deleted successfully.")
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text="Conversation reset",  # type: ignore
+                text="Conversation reset",
             )
         else:
             print("no conversations to delete.")
@@ -85,10 +95,10 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text  # type: ignore
+    text = update.message.text
     db = next(get_db())
     user = db.query(User).filter(User.username == update.message.chat.username).first()
-    response = generate_ai_response(text, user)  # type: ignore
+    response = generate_ai_response(text, user)
     if user and response:
         conversation = Conversation(
             text=text, imageurl="", response=response, user=user
@@ -142,7 +152,7 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handleVideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(update)
-    video = update.message.video  # a video
+    video = update.message.video
     video_name = "{}-{}x{}.mp4".format(update.update_id, video.width, video.height)
     tfile = await context.bot.getFile(video.file_id)
     r = requests.get(tfile.file_path, stream=True)
@@ -179,7 +189,6 @@ async def handleVideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(update)
     document = update.message.document
     file = await context.bot.get_file(file_id=document)
     await file.download_to_drive(f"data/{document.file_name}")
@@ -187,7 +196,7 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pages = loader.load()
     all_page_contents = "".join([doc.page_content for doc in pages])
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=200,
+        chunk_size=1000,
         chunk_overlap=20,
         length_function=len,
         is_separator_regex=False,
