@@ -235,8 +235,6 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             while not pinecone.describe_index(index_name).status["ready"]:
                 time.sleep(1)
-
-        index = pinecone.Index(index_name)
         #use OpenAI model to embed the text
         embedding_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
         vectorstore = PineconeVectorStore(
@@ -255,15 +253,15 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         model = ChatOpenAI(openai_api_key=OPENAI_API_KEY)
         #vector store is used as a retriver
         retriever = vectorstore.as_retriever()
-        # configurable_retriever = retriever.configurable_fields(
-        #     search_kwargs=ConfigurableField(
-        #         id="search_kwargs",
-        #         name="Search Kwargs",
-        #         description="The search kwargs to use",
-        #     )
-        # )
+        configurable_retriever = retriever.configurable_fields(
+            search_kwargs=ConfigurableField(
+                id="search_kwargs",
+                name="Search Kwargs",
+                description="The search kwargs to use",
+            )
+        )
         chain = (
-            {"context": retriever, "question": RunnablePassthrough()} #context will be retrived from the vector store & question will be provided afterwords
+            {"context": configurable_retriever, "question": RunnablePassthrough()} #context will be retrived from the vector store & question will be provided afterwords
             | prompt
             | model
             | StrOutputParser()
@@ -280,8 +278,8 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
           print(f"error generating response: {e}")
     finally:
-        # index = pinecone.Index(index_name)
-        # index.delete(delete_all=True, namespace=update.message.chat.username)
+        index = pinecone.Index(index_name)
+        index.delete(delete_all=True, namespace=update.message.chat.username)
         os.remove(file_path) #delete the file that is downloaded in the data directory
         
 
