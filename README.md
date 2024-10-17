@@ -1,14 +1,14 @@
 # Telegram Bot-AI
 
-An Opensource Telegram bot with AI built using OPENAI GPT-4o model undestands text & image.
+An Opensource Telegram bot with AI built using OPENAI GPT-4o model answers to text, image, audio, video & file.
 
 ## About this project
 
-This project is made to see the power of AI with autonomous bots that can understand text, images and also remembers conversation history. 
+This project aims to demonstrate the power of AI with autonomous bots that can answer questions and also remember conversation history. 
 
 ## Features
 - Telegram bot with AI
-- Understands text & images
+- Understands text, audio, images, video & file
 - Remembers the conversation history
 - reset the conversation with the reset command
 
@@ -17,7 +17,7 @@ This project is made to see the power of AI with autonomous bots that can unders
 ```bash
 pip install -r requirements.txt
 ```
-2. copy the .env.example to .env file and update the variables
+2. rename the .env.example to .env file and update the variables
 ```bash
 cp .env.example .env
 ```
