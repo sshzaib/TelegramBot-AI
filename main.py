@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application = ApplicationBuilder().token(BOT_TOKEN).build() 
 
     start_handler = CommandHandler("start", start)
     application.add_handler(start_handler)

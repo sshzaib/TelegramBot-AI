@@ -1,22 +1,22 @@
 from database.models import Base
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker
 import os
 
-database_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "db.sqlite3")
+database_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "db.sqlite3") #save at the root file db.sqlite3
 
 
-engine = create_engine(f"sqlite:///{database_path}", echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db_session = scoped_session(SessionLocal)
+engine = create_engine(f"sqlite:///{database_path}", echo=True)  #manage database connection
+Session = sessionmaker(bind=engine) #to work with database provide methods to work with database
+db_session = Session()
 
 
 def get_db():
-    db = db_session()
+    db_session = Session()
     try:
-        yield db
+        yield db_session
     finally:
-        db_session().close()
+        db_session.close()
 
 
 def init_db():

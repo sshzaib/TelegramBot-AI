@@ -8,7 +8,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "user"
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True)
+    username = Column(String, unique=True, nullable= False)
     firstname = Column(String)
     lastname = Column(String)
 
