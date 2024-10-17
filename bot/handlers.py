@@ -51,6 +51,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             🤳 Send me a video message and I'll respond by voice
             💬 Send me a chat message and I'll respond by text
             📸 Send me a photo of your day and we can discuss it
+            📁 Send me a file and ask question about it, I'll respond
 
         Write /reset at any moment to delete your entire conversation history from our server
         """
@@ -76,7 +77,7 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("conversations deleted successfully.")
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text="Conversation reset",   #send this message to user
+                text="Conversations removed from the server",   #send this message to user
             )
         else:
             print("no conversations to delete.")
@@ -101,7 +102,6 @@ async def handleText(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=text, imageurl="", response=response, user=user
             )
             db.add(conversation)    #store reponse to the text in the database
-            print(conversation)
             db.commit()
         await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
     except Exception as e:
@@ -139,7 +139,7 @@ async def handleAudio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         date = datetime.datetime.now()
         audio_name = f"{date.strftime('%f')}.oga" 
         audio_path = f"data/{audio_name}" #audio path
-        urllib.request.urlretrieve(audioUrl, audio_path) 
+        urllib.request.urlretrieve(audioUrl, audio_path) #download audio from this url to this path
         text = generate_text_from_voice_message(audio_path) #convert audio message to text
         response = generate_ai_response(text, user) #generate AI response based on the text 
         date = datetime.datetime.now()
@@ -220,10 +220,10 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chunk_overlap=20,
         )
         #split the text into chunks to embed them
-        texts = text_splitter.create_documents([all_page_contents])
-        embedding_text_list = [text.page_content for text in texts]
+        texts = text_splitter.create_documents([all_page_contents]) #array of document type
+        embedding_text_list = [text.page_content for text in texts] #array of string that will be embedded
         pinecone = Pinecone(api_key=PINECONE_API_KEY)
-        index_name = "telegram-bot-index"  # change if desired
+        index_name = "telegram-bot-index"  
         existing_indexes = [index_info["name"] for index_info in pinecone.list_indexes()]
         #if index name does not exist, create a new index
         if index_name not in existing_indexes:
@@ -242,7 +242,7 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             embedding = embedding_model,
             pinecone_api_key = PINECONE_API_KEY,
         )
-
+        #add the text in the vector store
         vectorstore.add_texts(embedding_text_list, namespace=update.message.chat.username) #namespace is by username so that any other user can not access the embedded data of anyother user
         template = """You are an helpful assistent. Answer the question based only on the following context.
         {context}
@@ -253,6 +253,7 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         model = ChatOpenAI(openai_api_key=OPENAI_API_KEY)
         #vector store is used as a retriver
         retriever = vectorstore.as_retriever()
+        #per-user retrieval retrieve data based on the user
         configurable_retriever = retriever.configurable_fields(
             search_kwargs=ConfigurableField(
                 id="search_kwargs",
@@ -278,8 +279,8 @@ async def handleFile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
           print(f"error generating response: {e}")
     finally:
-        index = pinecone.Index(index_name)
-        index.delete(delete_all=True, namespace=update.message.chat.username)
+        index = pinecone.Index(index_name) 
+        index.delete(delete_all=True, namespace=update.message.chat.username) #reset the vector store of the user
         os.remove(file_path) #delete the file that is downloaded in the data directory
         
 

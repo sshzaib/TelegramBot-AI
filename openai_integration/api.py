@@ -9,7 +9,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 #generate AI response 
 def generate_ai_response(text, user, imageURL=""):
-    #if the user has only provided the image without the caption then send this message and ask the user to ask some question about the image
+    #if the user has only provided the image without the caption then send this message and ask the user for question about the image
     if text is None:
         response = "It seems you've uploaded an image file. How can I assist you with this image? If you have any specific questions or need any particular operations performed on it, please let me know!"
         return response
@@ -81,7 +81,6 @@ def format_conversations(conversations):
         messages.append(user_history)
         response_history = {"role": "assistant", "content": conversation.response}
         messages.append(response_history)
-    print(messages)
     return messages
 
 def generate_text_from_voice_message(audio_path):
